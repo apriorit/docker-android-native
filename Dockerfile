@@ -43,12 +43,11 @@ RUN wget -q https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip
 RUN unzip -q sdk-tools-linux-3859397.zip
 RUN rm sdk-tools-linux-3859397.zip
 # setup development environment
+ENV PATH ${PATH}:${ANDROID_SDK_HOME}/emulator:${ANDROID_SDK_HOME}/tools:${ANDROID_SDK_HOME}/tools/bin:${ANDROID_SDK_HOME}/platform-tools
 RUN yes | sdkmanager --licenses
 RUN sdkmanager "emulator"
 RUN sdkmanager "platforms;android-25"
 RUN sdkmanager "platform-tools"
-
-ENV PATH ${PATH}:${ANDROID_SDK_HOME}/emulator:${ANDROID_SDK_HOME}/tools:${ANDROID_SDK_HOME}/tools/bin:${ANDROID_SDK_HOME}/platform-tools
 
 RUN sdkmanager "system-images;android-25;google_apis;armeabi-v7a"
 RUN sdkmanager "system-images;android-25;google_apis;arm64-v8a"
