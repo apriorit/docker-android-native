@@ -58,6 +58,7 @@ ENV ANDROID_EMULATOR_FORCE_32BIT true
 
 RUN git clone --depth=1 --branch=release-1.10.0 https://github.com/google/googletest.git /opt/gtest
 ENV GTEST_HOME /opt/gtest
-
+RUN mkdir -p /opt/plog && mv /opt/include/* /opt/plog && mv /opt/plog /opt/include/plog
+ENV PLOG_PATH=/opt/include
 VOLUME [ "/tmp/app" ]
 WORKDIR /tmp/app
