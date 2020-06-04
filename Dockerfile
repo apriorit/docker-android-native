@@ -1,3 +1,41 @@
+# Build SELinux dependencies
+FROM ubuntu:18.04 AS depsbuild
+RUN apt-get update && \
+    apt-get install -y build-essential --no-install-recommends && \
+    apt-get install -y openjdk-8-jdk --no-install-recommends && \
+    apt-get install -y wget --no-install-recommends && \
+    apt-get install -y unzip --no-install-recommends && \
+    apt-get install -y file --no-install-recommends && \
+    rm /var/lib/apt/lists/* -rf
+
+
+# Download android ndk
+ENV ANDROID_NDK_HOME /opt/android-ndk
+ENV ANDROID_NDK_VERSION r12b
+
+# download
+RUN mkdir /opt/android-ndk-tmp
+WORKDIR /opt/android-ndk-tmp
+RUN wget -q https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux-x86_64.zip
+# uncompress
+RUN unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux-x86_64.zip
+# move to its final location
+RUN mv ./android-ndk-${ANDROID_NDK_VERSION} ${ANDROID_NDK_HOME}
+WORKDIR /
+RUN rm -rf /opt/android-ndk-tmp
+
+# add to PATH
+ENV PATH ${PATH}:${ANDROID_NDK_HOME}
+ENV ANDROID_NDK ${ANDROID_NDK_HOME}/android-ndk-${ANDROID_NDK_VERSION}
+ENV PATH ${ANDROID_NDK}:${PATH}
+
+COPY ./ext /tmp/app
+WORKDIR /tmp/app
+RUN ndk-build -B NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=libsepol/Android.mk APP_PLATFORM=android-23 TARGET_ARCH_ABI=arm64-v8a APP_ABI=arm64-v8a NDK_OUT=/tmp/app/obj && \
+    ndk-build -B NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=libqpol/Android.mk APP_PLATFORM=android-23 TARGET_ARCH_ABI=arm64-v8a APP_ABI=arm64-v8a NDK_OUT=/tmp/app/obj && \
+    ndk-build -B NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=libapol/Android.mk APP_PLATFORM=android-23 TARGET_ARCH_ABI=arm64-v8a APP_ABI=arm64-v8a NDK_OUT=/tmp/app/obj
+
+# Build main image container
 FROM ubuntu:18.04
 
 LABEL maintainer="Andrey Mokych <mokych.andrey@apriorit.com>"
@@ -60,5 +98,13 @@ RUN git clone --depth=1 --branch=release-1.10.0 https://github.com/google/google
 ENV GTEST_HOME /opt/gtest
 RUN mkdir -p /opt/plog && mv /opt/include/* /opt/plog && mv /opt/plog /opt/include/plog
 ENV PLOG_PATH=/opt/include
+
+ENV SELINUX_LIBS_DIR=/opt/selinux/libs
+RUN mkdir -p ${SELINUX_LIBS_DIR}
+COPY --from=depsbuild /tmp/app/obj/local/arm64-v8a/libapol.a ${SELINUX_LIBS_DIR}/
+COPY --from=depsbuild /tmp/app/obj/local/arm64-v8a/libqpol.a ${SELINUX_LIBS_DIR}/
+COPY --from=depsbuild /tmp/app/obj/local/arm64-v8a/libsepol.a ${SELINUX_LIBS_DIR}/
+COPY --from=depsbuild /tmp/app/obj/local/arm64-v8a/libbz2.a ${SELINUX_LIBS_DIR}/
+
 VOLUME [ "/tmp/app" ]
 WORKDIR /tmp/app
